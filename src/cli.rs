@@ -26,11 +26,10 @@ pub struct Args {
 
 pub fn main() {
     if let Err(ref e) = run() {
-        let mut stderr = io::stderr();
-        writeln!(stderr, "error: {}", e);
+        println_err!("error: {}", e);
 
         for e in e.iter().skip(1) {
-            writeln!(stderr, "caused by: {}", e);
+            println_err!("caused by: {}", e);
         }
 
         process::exit(1);

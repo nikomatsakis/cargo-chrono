@@ -9,10 +9,11 @@ extern crate regex;
 extern crate rustc_serialize;
 
 #[macro_use]
-mod errors;
+mod macros;
 
 mod bench;
 mod cli;
+mod errors;
 mod git;
 
 pub use cli::main;

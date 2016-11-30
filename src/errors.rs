@@ -11,12 +11,3 @@ error_chain! {
         }
     }
 }
-
-macro_rules! throw {
-    ($e:expr) => {
-        return Err($e.into());
-    };
-    ($fmt:expr, $($arg:tt)+) => {
-        return Err(format!($fmt, $($arg)+).into());
-    };
-}

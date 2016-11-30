@@ -1,7 +1,6 @@
 use std::io::{self, Write};
 use std::path::Path;
-use git2::{Commit, Error as Git2Error, ErrorCode, Object, Repository, Status,
-           STATUS_IGNORED};
+use git2::{ErrorCode, Repository, Status, STATUS_IGNORED};
 use errors::*;
 
 /// Search upwards from `start_path` to find a valid git repo.
