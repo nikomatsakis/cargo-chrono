@@ -1,10 +1,10 @@
+use errors::*;
 use git;
 use regex;
 use std::env;
-use std::error::Error;
 use std::process::Command;
 
-pub fn bench(options: &[String]) -> Result<(), Box<Error>> {
+pub fn bench(options: &[String]) -> Result<()> {
     let current_dir = env::current_dir()?;
     let repo = git::open_repo(&current_dir)?;
     

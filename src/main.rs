@@ -1,5 +1,5 @@
-extern crate cargo_metro;
+extern crate cargo_chrono;
 
 fn main() {
-    cargo_metro::main();
+    cargo_chrono::main();
 }
