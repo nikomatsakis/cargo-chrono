@@ -1,3 +1,4 @@
+use errors::*;
 use bench;
 use docopt::Docopt;
 use env_logger;
@@ -24,6 +25,19 @@ pub struct Args {
 }
 
 pub fn main() {
+    if let Err(ref e) = run() {
+        let mut stderr = io::stderr();
+        writeln!(stderr, "error: {}", e);
+
+        for e in e.iter().skip(1) {
+            writeln!(stderr, "caused by: {}", e);
+        }
+
+        process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     env_logger::init().unwrap();
     debug!("env_logger initialized");
 
@@ -31,15 +45,9 @@ pub fn main() {
         .and_then(|d| d.argv(env::args().into_iter()).decode())
         .unwrap_or_else(|e| e.exit());
 
-    let mut stderr = io::stderr();
     if args.cmd_bench {
-        match bench::bench(&args.arg_bench_option) {
-            Ok(()) => { }
-            Err(err) => {
-                writeln!(&mut stderr, "error: {}", err).unwrap();
-                process::exit(1);
-            }
-        }
+        bench::bench(&args.arg_bench_option)?;
     }
-}
 
+    Ok(())
+}
