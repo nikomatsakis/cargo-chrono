@@ -9,6 +9,6 @@ macro_rules! throw {
 
 macro_rules! println_err {
     ($fmt:expr, $($arg:tt)+) => {
-        io::stderr().write_fmt(format_args!($fmt, $($arg)+)).unwrap()
+        writeln!(&mut io::stderr(), $fmt, $($arg)+).unwrap()
     };
 }
