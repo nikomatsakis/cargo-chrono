@@ -1,5 +1,5 @@
 [package]
-name = "cargo-metro"
+name = "cargo-chrono"
 version = "0.1.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 
@@ -11,3 +11,4 @@ rustc-serialize = "0.3.19"
 log = "0.3"
 env_logger = "0.3"
 csv = "0.14.7"
+error-chain = "0.6.2"
