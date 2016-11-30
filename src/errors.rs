@@ -1,7 +1,7 @@
 error_chain! {
     foreign_links {
         Io(::std::io::Error);
-        Git2(::git2::Git2Error);
+        Git2(::git2::Error);
     }
 
     errors {
@@ -14,6 +14,9 @@ error_chain! {
 
 macro_rules! throw {
     ($e:expr) => {
-        return Err($expr.into());
-    }
+        return Err($e.into());
+    };
+    ($fmt:expr, $($arg:tt)+) => {
+        return Err(format!($fmt, $($arg)+).into());
+    };
 }

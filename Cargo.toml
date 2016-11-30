@@ -11,4 +11,4 @@ rustc-serialize = "0.3.19"
 log = "0.3"
 env_logger = "0.3"
 csv = "0.14.7"
-error-chain = "0.6.2"
+error-chain = { version = "0.7.0", git = "https://github.com/brson/error-chain", branch = "fixes" }

@@ -1,9 +1,11 @@
+use std::io::{self, Write};
+use std::path::Path;
 use git2::{Commit, Error as Git2Error, ErrorCode, Object, Repository, Status,
            STATUS_IGNORED};
 use errors::{ErrorKind, Result};
 
 /// Search upwards from `start_path` to find a valid git repo.
-pub fn open_repo(start_path: &Path) -> Result<Repository> {
+pub fn open_repo(cargo_path: &Path) -> Result<Repository> {
     let mut git_path = cargo_path;
 
     loop {
@@ -16,7 +18,7 @@ pub fn open_repo(start_path: &Path) -> Result<Repository> {
                     match err.code() {
                         ErrorCode::NotFound => {}
                         _ => {
-                            return Err(err);
+                            throw!(err);
                         }
                     }
                 }
@@ -25,7 +27,7 @@ pub fn open_repo(start_path: &Path) -> Result<Repository> {
 
         git_path = match git_path.parent() {
             Some(p) => p,
-            None => return Repository::open(cargo_path),
+            None => return Ok(Repository::open(cargo_path)?),
         }
     }
 }
@@ -33,7 +35,7 @@ pub fn open_repo(start_path: &Path) -> Result<Repository> {
 pub fn check_clean(repo: &Repository) -> Result<()> {
     let statuses = match repo.statuses(None) {
         Ok(s) => s,
-        Err(err) => error!("could not load git repository status: {}", err),
+        Err(err) => throw!("could not load git repository status: {}", err),
     };
 
     let mut errors = 0;
@@ -51,5 +53,7 @@ pub fn check_clean(repo: &Repository) -> Result<()> {
     if errors > 0 {
         throw!(ErrorKind::DirtyRepo(errors))
     }
+
+    Ok(())
 }
 
