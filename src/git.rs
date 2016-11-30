@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::path::Path;
 use git2::{Commit, Error as Git2Error, ErrorCode, Object, Repository, Status,
            STATUS_IGNORED};
-use errors::{ErrorKind, Result};
+use errors::*;
 
 /// Search upwards from `start_path` to find a valid git repo.
 pub fn open_repo(cargo_path: &Path) -> Result<Repository> {
@@ -33,10 +33,8 @@ pub fn open_repo(cargo_path: &Path) -> Result<Repository> {
 }
 
 pub fn check_clean(repo: &Repository) -> Result<()> {
-    let statuses = match repo.statuses(None) {
-        Ok(s) => s,
-        Err(err) => throw!("could not load git repository status: {}", err),
-    };
+    let statuses = repo.statuses(None)
+        .chain_err(|| "could not load git repository status")?;
 
     let mut errors = 0;
     let dirty_status = Status::all() - STATUS_IGNORED;
