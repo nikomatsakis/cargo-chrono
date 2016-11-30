@@ -11,9 +11,12 @@ const USAGE: &'static str = "
 Execute `cargo bench`, recording the results for later analysis.
 
 Usage:
-    cargo-metro bench [<bench-option>...]
+    cargo-chrono [options] bench [--label <label>] [<bench-option>...]
 
 Running benchmarks:
+
+Options:
+    -f, --file <file>            Data file to write to [default: chrono.csv].
 ";
 
 // dead code allowed for now
@@ -22,6 +25,8 @@ Running benchmarks:
 pub struct Args {
     cmd_bench: bool,
     arg_bench_option: Vec<String>,
+    flag_file: String,
+    flag_label: Option<String>,
 }
 
 pub fn main() {
@@ -45,7 +50,9 @@ fn run() -> Result<()> {
         .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
-        bench::bench(&args.arg_bench_option)?;
+        bench::bench(&args.flag_file,
+                     &args.flag_label,
+                     &args.arg_bench_option)?;
     }
 
     Ok(())
