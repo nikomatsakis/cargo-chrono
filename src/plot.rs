@@ -7,7 +7,6 @@ pub fn plot(data_file: &str, include_variance: bool, output_file: &str) -> Resul
     let ref measurements = data::load_measurements(data_file)?;
     let ref x_coords = compute_x_coords(measurements);
     let ref data_sets = compute_data_sets(measurements);
-    let ref chars = data_set_characters(measurements);
 
     let mut fg = Figure::new();
 
@@ -54,29 +53,6 @@ fn compute_data_sets(measurements: &[Measurement]) -> HashMap<String, Vec<&Measu
     let mut result = HashMap::new();
     for m in measurements {
         result.entry(m.name.clone()).or_insert(vec![]).push(m);
-    }
-    result
-}
-
-fn data_set_characters(measurements: &[Measurement]) -> HashMap<String, char> {
-    let mut result = HashMap::new();
-    let mut chars_taken = HashSet::new();
-    for m in measurements {
-        if result.contains_key(&m.name) {
-            continue;
-        }
-
-        // pick the first character that is not taken; if we can't
-        // find one, then just pick the first character (oh well)
-        let first_char_not_taken = m.name.chars().filter(|&c| chars_taken.insert(c)).next();
-        if let Some(ch) = first_char_not_taken {
-            result.insert(m.name.clone(), ch);
-        } else if let Some(ch) = m.name.chars().next() {
-            result.insert(m.name.clone(), ch);
-        } else {
-            // use 'x' for empty string, which we really don't expect anyway
-            result.insert(m.name.clone(), 'x');
-        }
     }
     result
 }

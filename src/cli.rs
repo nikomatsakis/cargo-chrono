@@ -18,6 +18,7 @@ How to use it.
 Options:
     -f, --file <file>            Data file to write to [default: chrono.csv].
     --ignore-dirty               (bench:) Ignore dirty files when relevant.
+    --repeat <N>                 (bench:) Take N measurements when benchmarking [default: 1].
     --include-variance           (plot:) Include variance as errors bars.
     --output-file <file>         (plot:) Where to write the output [default: chrono.svg].
 ";
@@ -30,6 +31,7 @@ pub struct Args {
     cmd_plot: bool,
     arg_bench_option: Vec<String>,
     flag_file: String,
+    flag_repeat: usize,
     flag_ignore_dirty: bool,
     flag_include_variance: bool,
     flag_output_file: String,
@@ -58,6 +60,7 @@ fn run() -> Result<()> {
     if args.cmd_bench {
         bench::bench(&args.flag_file,
                      args.flag_ignore_dirty,
+                     args.flag_repeat,
                      &args.arg_bench_option)?;
     } else if args.cmd_plot {
         plot::plot(&args.flag_file,
