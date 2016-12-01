@@ -12,6 +12,7 @@ Execute `cargo bench`, recording the results for later analysis.
 Usage:
     cargo-chrono bench [options] [--] [<bench-option>...]
     cargo-chrono plot [options]
+    cargo-chrono --help
 
 How to use it.
 
