@@ -9,6 +9,10 @@ macro_rules! throw {
 
 macro_rules! println_err {
     ($fmt:expr, $($arg:tt)+) => {
-        writeln!(&mut io::stderr(), $fmt, $($arg)+).unwrap()
+        {
+            use std::io;
+            use std::io::prelude::*;
+            writeln!(&mut io::stderr(), $fmt, $($arg)+).unwrap()
+        }
     };
 }
