@@ -16,13 +16,13 @@ pub fn plot(data_file: &str, config: Config) -> Result<()> {
     // If there are multiple commits, then we want to use each commit as a point
     // on the X axis.
     if measurements[1..].iter().any(|m| m.commit != measurements[0].commit) {
-       return plot_commits_as_x(measurements, config);
+        return plot_commits_as_x(measurements, config);
     }
 
     // If there are multiple test names, use those commits as points
     // on the X axis.
     if measurements[1..].iter().any(|m| m.test != measurements[0].test) {
-       return plot_tests_as_x(measurements, config);
+        return plot_tests_as_x(measurements, config);
     }
 
     // Else, use individual measurements as points.
@@ -54,11 +54,12 @@ fn plot_with_x_axis(measurements: &[Measurement], x_axis: &XAxis, config: Config
         axes.set_x_axis(true, &[]);
         axes.set_x_label(&x_axis.axis_label, &[]);
         axes.set_y_axis(true, &[]);
+        axes.set_y_label("ns/iter", &[]);
 
         if let Some(ref ticks) = x_axis.ticks {
             let gnu_ticks = ticks.iter()
-                                 .enumerate()
-                                 .map(|(i, s)| Tick::Major(i, AutoOption::Fix(s.to_string())));
+                .enumerate()
+                .map(|(i, s)| Tick::Major(i, AutoOption::Fix(s.to_string())));
             axes.set_x_ticks_custom(gnu_ticks, &[], &[]);
         }
 
@@ -66,7 +67,8 @@ fn plot_with_x_axis(measurements: &[Measurement], x_axis: &XAxis, config: Config
             let xs = ds_measurements.iter().map(|&i| x_axis.coords[i]);
             let ys = ds_measurements.iter().map(|&i| measurements[i].time);
 
-            let options = vec![PlotOption::Caption(&ds_name)];
+            let name = escape(&ds_name);
+            let options = vec![PlotOption::Caption(&name)];
             if !config.include_variance {
                 axes.points(xs, ys, &options);
             } else {
@@ -111,9 +113,7 @@ fn compute_x_axis_from_tests(measurements: &[Measurement]) -> XAxis {
     compute_x_axis_from_names(measurements, "test", |m| &m.test)
 }
 
-fn compute_x_axis_from_names<F>(measurements: &[Measurement],
-                                axis_label: &str,
-                                name: F) -> XAxis
+fn compute_x_axis_from_names<F>(measurements: &[Measurement], axis_label: &str, name: F) -> XAxis
     where F: Fn(&Measurement) -> &String
 {
     let mut set = HashSet::new();
@@ -142,7 +142,7 @@ fn compute_x_axis_from_indices(measurements: &[Measurement]) -> XAxis {
     XAxis {
         axis_label: "measurement".to_string(),
         coords: (0..measurements.len()).collect(),
-        ticks: None
+        ticks: None,
     }
 }
 
@@ -152,4 +152,10 @@ fn compute_data_sets(measurements: &[Measurement]) -> HashMap<String, Vec<usize>
         result.entry(m.test.clone()).or_insert(vec![]).push(i);
     }
     result
+}
+
+fn escape(name: &str) -> String {
+    // GNU plot converts `_` into subscript; I can't find a way to
+    // disable this escaping in the Rust wrapper so...
+    name.replace('_', "-")
 }
