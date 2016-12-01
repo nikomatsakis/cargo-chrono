@@ -65,8 +65,10 @@ fn run() -> Result<()> {
                      &args.arg_bench_option)?;
     } else if args.cmd_plot {
         plot::plot(&args.flag_file,
-                   args.flag_include_variance,
-                   &args.flag_output_file)?;
+                   plot::Config {
+                       include_variance: args.flag_include_variance,
+                       output_file: &args.flag_output_file
+                   })?;
     } else {
         throw!("bug: unknown command")
     }

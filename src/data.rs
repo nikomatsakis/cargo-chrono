@@ -4,7 +4,7 @@ use csv;
 #[derive(Clone, Debug, RustcDecodable)]
 pub struct Measurement {
     pub commit: String, // a sha1 hash
-    pub name: String,
+    pub test: String, // name of test that was run
     pub time: u64,
     pub variance: u64,
 }

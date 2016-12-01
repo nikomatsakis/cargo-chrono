@@ -88,15 +88,15 @@ impl<'repo> AsObject<'repo> for Commit<'repo> {
     }
 }
 
-// pub fn short_id<'repo, T>(obj: &T) -> String
-//    where T: AsObject<'repo>
-// {
-//    let obj = obj.as_object();
-//    match obj.short_id() {
-//        Ok(buf) => buf.as_str().unwrap().to_string(), // should really be utf-8
-//        Err(_) => obj.id().to_string(), // oh screw it use the full id
-//    }
-// }
+pub fn short_id<'repo, T>(obj: &T) -> String
+   where T: AsObject<'repo>
+{
+   let obj = obj.as_object();
+   match obj.short_id() {
+       Ok(buf) => buf.as_str().unwrap().to_string(), // should really be utf-8
+       Err(_) => obj.id().to_string(), // oh screw it use the full id
+   }
+}
 //
 // pub fn commit_or_error<'obj, 'repo>(obj: Object<'repo>) -> Result<Commit<'repo>> {
 //    match obj.into_commit() {

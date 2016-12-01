@@ -1,6 +1,7 @@
 use csv;
 use errors::*;
 use git;
+use git2::ObjectType;
 use regex::Regex;
 use std::env;
 use std::fs::OpenOptions;
@@ -40,13 +41,12 @@ pub fn bench(data_file: &str,
     }
 
     // find the current commit sha1 hash
-    let commit = repo.head()
+    let commit = git::short_id(&repo.head()
         .chain_err(|| "failed to fetch HEAD from repo")?
-        .target()
-        .unwrap()
-        .to_string();
+        .peel(ObjectType::Commit)
+        .chain_err(|| "HEAD not a commit")?);
 
-    for _ in 0 .. flag_repeat {
+    for _ in 0..flag_repeat {
         // Execute cargo and save the output.
         let mut cargo = Command::new("cargo");
         cargo.arg("bench");
@@ -54,7 +54,7 @@ pub fn bench(data_file: &str,
             cargo.arg(bench_option);
         }
         let output = cargo.output()
-                          .chain_err(|| "error executing `cargo bench`")?;
+            .chain_err(|| "error executing `cargo bench`")?;
         if !output.status.success() {
             throw!("`cargo bench` exited with error-code `{}`", output.status);
         }
@@ -75,7 +75,7 @@ pub fn bench(data_file: &str,
                 let variance_str: String = variance_str.chars().filter(|&c| c != ',').collect();
                 let data = (&commit, name, time_str, variance_str);
                 writer.encode(data)
-                      .chain_err(|| format!("failed to write data for test `{}`", name))?;
+                    .chain_err(|| format!("failed to write data for test `{}`", name))?;
             }
         }
     }
