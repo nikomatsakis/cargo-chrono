@@ -18,6 +18,8 @@ How to use it.
 
 Options:
     -f, --file <file>            Data file to write to [default: chrono.csv].
+    --commits <commit-list>      (bench:) check out each commit in the (space-separated) list
+                                 in turn and run the benchmark, accumulating results
     --ignore-dirty               (bench:) Ignore dirty files when relevant.
     --repeat <N>                 (bench:) Take N measurements when benchmarking [default: 1].
     --include-variance           (plot:) Include variance as errors bars.
@@ -36,6 +38,7 @@ pub struct Args {
     flag_ignore_dirty: bool,
     flag_include_variance: bool,
     flag_output_file: String,
+    flag_commits: Option<String>,
 }
 
 pub fn main() {
@@ -62,6 +65,7 @@ fn run() -> Result<()> {
         bench::bench(&args.flag_file,
                      args.flag_ignore_dirty,
                      args.flag_repeat,
+                     &args.flag_commits,
                      &args.arg_bench_option)?;
     } else if args.cmd_plot {
         plot::plot(&args.flag_file,

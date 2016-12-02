@@ -1,37 +1,13 @@
 use std::io::{self, Write};
 use std::path::Path;
-use git2::{Commit, ErrorCode, Object, Repository, Status, STATUS_IGNORED};
+use git2::{Commit, Object, Repository, Status, STATUS_IGNORED};
+use git2::build::CheckoutBuilder;
 use errors::*;
 
 /// Search upwards from `start_path` to find a valid git repo.
-pub fn open_repo(cargo_path: &Path) -> Result<Repository> {
-    let mut git_path = cargo_path;
-
-    loop {
-        if git_path.is_dir() {
-            match Repository::open(git_path) {
-                Ok(r) => {
-                    return Ok(r);
-                }
-                Err(err) => {
-                    match err.code() {
-                        ErrorCode::NotFound => {}
-                        _ => {
-                            Err(err).chain_err(|| "failed to open git repository")?;
-                        }
-                    }
-                }
-            }
-        }
-
-        git_path = match git_path.parent() {
-            Some(p) => p,
-            None => {
-                return Ok(Repository::open(cargo_path)
-                    .chain_err(|| "failed to open git repository")?)
-            }
-        }
-    }
+pub fn open_repo(start_path: &Path) -> Result<Repository> {
+    Ok(Repository::discover(start_path)
+       .chain_err(|| format!("could not find git repository in `{}`", start_path.display()))?)
 }
 
 pub fn check_clean(repo: &Repository, exceptions: &[&Path]) -> Result<()> {
@@ -97,10 +73,16 @@ pub fn short_id<'repo, T>(obj: &T) -> String
        Err(_) => obj.id().to_string(), // oh screw it use the full id
    }
 }
-//
-// pub fn commit_or_error<'obj, 'repo>(obj: Object<'repo>) -> Result<Commit<'repo>> {
-//    match obj.into_commit() {
-//        Ok(commit) => Ok(commit),
-//        Err(obj) => throw!("object `{}` is not a commit", short_id(&obj)),
-//    }
-// }
+
+pub fn checkout_commit(repo: &Repository, commit: &Commit)
+                       -> Result<()> {
+    let mut cb = CheckoutBuilder::new();
+    repo.checkout_tree(commit.as_object(), Some(&mut cb))
+        .chain_err(|| format!("failed to check out `{}`", short_id(commit)))?;
+
+    repo.set_head_detached(commit.id())
+        .chain_err(|| format!("failed to set HEAD to `{}`", short_id(commit)))?;
+
+    Ok(())
+}
+
