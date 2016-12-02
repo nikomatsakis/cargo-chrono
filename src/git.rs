@@ -34,9 +34,10 @@ pub fn check_clean(repo: &Repository, exceptions: &[&Path]) -> Result<()> {
                 let path = workdir.join(path_str)
                     .canonicalize()
                     .chain_err(|| format!("failed to canonicalize `{}`", path_str))?;
-                if !exceptions.iter().any(|e| *e == path) {
-                    writeln!(stderr, "file `{}` is dirty", path_str).unwrap();
+                if exceptions.iter().any(|e| *e == path) {
+                    continue;
                 }
+                writeln!(stderr, "file `{}` is dirty", path_str).unwrap();
             }
             errors += 1;
         }
