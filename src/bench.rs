@@ -3,11 +3,13 @@ use errors::*;
 use git;
 use git2::{ObjectType, Repository};
 use git2::build::CheckoutBuilder;
+use pbr::ProgressBar;
 use regex::Regex;
 use std::env;
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::path::Path;
 use std::process::Command;
+use std::io::prelude::*;
 use std::str;
 
 lazy_static! {
@@ -53,7 +55,17 @@ pub fn bench(data_file: &str,
         bench_names.push(String::new());
     }
 
+    let runs_per_commit = flag_repeat * bench_names.len() + 1;
+
+    let mut bar = ProgressBar::new(runs_per_commit as u64);
+    bar.show_speed = false;
+    bar.show_counter = false;
+    bar.show_time_left = false;
+    bar.show_tick = false;
+    bar.show_message = true;
+
     // if the user gave us a list of commits, check out each one in turn
+    let mut writer = csv::Writer::from_writer(data_file);
     if let Some(ref commits_str) = *commits {
         // let users write "a,b" or "a b"
         let head_commit = head.peel(ObjectType::Commit)
@@ -65,11 +77,21 @@ pub fn bench(data_file: &str,
         if let Some(r) = revisions.iter().find(|r| r.as_commit().is_none()) {
             bail!("revision `{}` is not a commit", git::short_id(r));
         }
+        let total_commits = revisions.len();
+        bar.total *= total_commits as u64;
         for commit in revisions.iter().filter_map(|r| r.as_commit()) {
+            bar.message(&format!("checking out `{}`", git::short_id(commit)));
             git::checkout_commit(&repo, commit)
                 .chain_err(|| format!("failed to checkout commit `{}`", git::short_id(commit)))?;
-            run_bench(&repo, &data_file, &bench_flags, &bench_names, flag_repeat)?;
+            run_bench(&mut bar,
+                      &repo,
+                      &mut writer,
+                      &bench_flags,
+                      &bench_names,
+                      flag_repeat)
+                ?;
         }
+        bar.message("restoring HEAD");
         repo.checkout_tree(&head_commit, Some(&mut CheckoutBuilder::new()))
             .chain_err(|| {
                 format!("failed to checkout original HEAD `{}`",
@@ -79,29 +101,68 @@ pub fn bench(data_file: &str,
         repo.set_head(name)
             .chain_err(|| format!("failed to restore original HEAD `{}`", name))?;
     } else {
-        run_bench(&repo, &data_file, &bench_flags, &bench_names, flag_repeat)?;
+        run_bench(&mut bar,
+                  &repo,
+                  &mut writer,
+                  &bench_flags,
+                  &bench_names,
+                  flag_repeat)
+            ?;
     }
 
     Ok(())
 }
 
-fn run_bench(repo: &Repository,
-             data_file: &File,
-             bench_flags: &[String],
-             bench_names: &[String],
-             flag_repeat: usize)
-             -> Result<()> {
+fn run_bench<F, WB>(bar: &mut ProgressBar<WB>,
+                    repo: &Repository,
+                    writer: &mut csv::Writer<F>,
+                    bench_flags: &[String],
+                    bench_names: &[String],
+                    flag_repeat: usize)
+                    -> Result<()>
+    where F: Write,
+          WB: Write
+{
+    // how many total times will we run cargo
+    let mut tick = |title: &str| {
+        bar.message(title);
+        bar.inc();
+    };
+
     // find the current commit sha1 hash
     let commit = git::short_id(&repo.head()
         .chain_err(|| "failed to fetch HEAD from repo")?
         .peel(ObjectType::Commit)
         .chain_err(|| "HEAD not a commit")?);
 
-    // repeat N times...
-    for _ in 0..flag_repeat {
-        // ...for each benchmark name they gave us...
-        for bench_name in bench_names {
+    {
+        tick(&format!("building `{}`", commit));
+        let mut cargo = Command::new("cargo");
+        cargo.arg("bench");
+        for bench_flag in bench_flags {
+            cargo.arg(bench_flag);
+        }
+        cargo.arg("--no-run");
+        let output = cargo.output().chain_err(|| "error executing `cargo bench`")?;
+        if !output.status.success() {
+            bail!("`{:?}` exited with error-code `{}`", cargo, output.status);
+        }
+    }
+
+    // for each benchmark name they gave us...
+    for bench_name in bench_names {
+        // repeat N times...
+        for i in 0..flag_repeat {
             // ...run cargo and save the output.
+            if !bench_name.is_empty() {
+                tick(&format!("testing `{}` from `{}` (run {}/{})",
+                              bench_name,
+                              commit,
+                              i + 1,
+                              flag_repeat));
+            } else {
+                tick(&format!("testing `{}` (run {}/{})", commit, i + 1, flag_repeat));
+            }
             let mut cargo = Command::new("cargo");
             cargo.arg("bench");
             for bench_flag in bench_flags {
@@ -113,7 +174,7 @@ fn run_bench(repo: &Repository,
             let output = cargo.output()
                 .chain_err(|| "error executing `cargo bench`")?;
             if !output.status.success() {
-                throw!("`cargo bench` exited with error-code `{}`", output.status);
+                bail!("`{:?}` exited with error-code `{}`", cargo, output.status);
             }
             let output_str = match str::from_utf8(&output.stdout) {
                 Ok(s) => s,
@@ -124,7 +185,6 @@ fn run_bench(repo: &Repository,
             // the data file as we go. The data has this format:
             //
             // (label, test_name, time, variance)
-            let mut writer = csv::Writer::from_writer(data_file);
             for line in output_str.lines() {
                 if let Some(captures) = BENCH_RE.captures(line) {
                     let (name, time_str, variance_str) = (&captures[1], &captures[2], &captures[3]);

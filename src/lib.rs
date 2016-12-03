@@ -12,6 +12,7 @@ extern crate lazy_static;
 extern crate log;
 extern crate regex;
 extern crate rustc_serialize;
+extern crate pbr;
 
 #[macro_use]
 mod macros;

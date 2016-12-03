@@ -1,32 +1,65 @@
 use data::{self, Measurement};
 use errors::*;
 use gnuplot::{AutoOption, AxesCommon, Figure, PlotOption, Tick};
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
+use std::cmp;
 
 pub struct Config<'c> {
     pub include_variance: bool,
+    pub compute_medians: bool,
     pub output_file: &'c str,
+    pub filters: &'c [String],
 }
 
-pub fn plot(data_file: &str, config: Config) -> Result<()> {
-    let ref measurements = data::load_measurements(data_file)?;
+pub fn plot(data_file: &str, mut config: Config) -> Result<()> {
+    let mut measurements = data::load_measurements(data_file)?;
 
-    // We have to decide now between various ways to plot.
+    // First apply the filters.
+    let filters: Vec<_> = try!(config.filters
+        .iter()
+        .map(|f| {
+            let (inverted, text) = if f.starts_with("!") {
+                (true, &f[1..])
+            } else {
+                (false, &f[..])
+            };
+            Regex::new(text)
+                .chain_err(|| format!("filter `{}` not a valid regular expression", f))
+            .map(|r| (inverted, r))
+        })
+        .collect());
+    measurements.retain(|m| passes_filters(&filters, m));
+
+    // Convert to medians
+    if config.compute_medians {
+        measurements = compute_medians(&measurements);
+        config.include_variance = true;
+    }
 
     // If there are multiple commits, then we want to use each commit as a point
     // on the X axis.
     if measurements[1..].iter().any(|m| m.commit != measurements[0].commit) {
-        return plot_commits_as_x(measurements, config);
+        return plot_commits_as_x(&measurements, config);
     }
 
     // If there are multiple test names, use those commits as points
     // on the X axis.
     if measurements[1..].iter().any(|m| m.test != measurements[0].test) {
-        return plot_tests_as_x(measurements, config);
+        return plot_tests_as_x(&measurements, config);
     }
 
     // Else, use individual measurements as points.
-    return plot_indices_as_x(measurements, config);
+    return plot_indices_as_x(&measurements, config);
+}
+
+fn passes_filters(filters: &[(bool, Regex)], m: &Measurement) -> bool {
+    if filters.is_empty() {
+        true
+    } else {
+        filters.iter()
+            .any(|&(inverted, ref r)| !inverted == (r.is_match(&m.commit) || r.is_match(&m.test)))
+    }
 }
 
 fn plot_commits_as_x(measurements: &[Measurement], config: Config) -> Result<()> {
@@ -75,7 +108,7 @@ fn plot_with_x_axis(measurements: &[Measurement], x_axis: &XAxis, config: Config
                 // cargo bench reports the diff between max/min. That
                 // means we want a bar of equal height on top and
                 // bottom, so divide by 2.
-                let y_errors = ds_measurements.iter().map(|&i| measurements[i].variance / 2);
+                let y_errors = ds_measurements.iter().map(|&i| measurements[i].variance);
                 axes.y_error_lines(xs, ys, y_errors, &options);
             }
         }
@@ -158,4 +191,52 @@ fn escape(name: &str) -> String {
     // GNU plot converts `_` into subscript; I can't find a way to
     // disable this escaping in the Rust wrapper so...
     name.replace('_', "-")
+}
+
+fn compute_medians(measurements: &[Measurement]) -> Vec<Measurement> {
+    let mut keys = vec![];
+    let mut map = HashMap::new();
+    for measurement in measurements {
+        let key = (measurement.commit.clone(), measurement.test.clone());
+        let aggregated = map.entry(key.clone())
+                            .or_insert_with(|| {
+                                keys.push(key);
+                                vec![]
+                            });
+        aggregated.push(measurement.time);
+    }
+
+    keys.into_iter()
+        .map(|key| {
+            let (median, error) = compute_median_and_error(map[&key].iter().cloned());
+            Measurement { commit: key.0, test: key.1, time: median, variance: error }
+        })
+        .collect()
+}
+
+fn compute_median_and_error<I: Iterator<Item = u64>>(values: I) -> (u64, u64) {
+    let mut values: Vec<u64> = values.collect();
+    values.sort();
+    let len = values.len();
+    let median = if len == 0 {
+        0
+    } else if len % 2 == 1 {
+        // odd number. pick the one in the middle.
+        //
+        // [0, 1, 2, 3]
+        values[len / 2 - 1] / 2 + values[len / 2] / 2
+    } else {
+        // even number: average the two in the middle.
+        //
+        // [0, 1, 2]
+        values[len / 2]
+    };
+
+    let error = if len == 0 {
+        0
+    } else {
+        cmp::max(median - values[0], values[len - 1] - median)
+    };
+
+    (median, error)
 }

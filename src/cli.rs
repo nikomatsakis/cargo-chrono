@@ -11,7 +11,7 @@ Execute `cargo bench`, recording the results for later analysis.
 
 Usage:
     cargo-chrono bench [options] [--] [<bench-option>...]
-    cargo-chrono plot [options]
+    cargo-chrono plot [options] [<plot-filter>...]
     cargo-chrono --help
 
 How to use it.
@@ -23,6 +23,7 @@ Options:
     --ignore-dirty               (bench:) Ignore dirty files when relevant.
     --repeat <N>                 (bench:) Take N measurements when benchmarking [default: 1].
     --include-variance           (plot:) Include variance as errors bars.
+    --medians                    (plot:) Plot medians of all samples (with error bars).
     --output-file <file>         (plot:) Where to write the output [default: chrono.svg].
 ";
 
@@ -33,10 +34,12 @@ pub struct Args {
     cmd_bench: bool,
     cmd_plot: bool,
     arg_bench_option: Vec<String>,
+    arg_plot_filter: Vec<String>,
     flag_file: String,
     flag_repeat: usize,
     flag_ignore_dirty: bool,
     flag_include_variance: bool,
+    flag_medians: bool,
     flag_output_file: String,
     flag_commits: Option<String>,
 }
@@ -71,7 +74,9 @@ fn run() -> Result<()> {
         plot::plot(&args.flag_file,
                    plot::Config {
                        include_variance: args.flag_include_variance,
-                       output_file: &args.flag_output_file
+                       compute_medians: args.flag_medians,
+                       output_file: &args.flag_output_file,
+                       filters: &args.arg_plot_filter,
                    })?;
     } else {
         throw!("bug: unknown command")
