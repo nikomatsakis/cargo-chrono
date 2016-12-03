@@ -4,6 +4,7 @@ extern crate docopt;
 #[macro_use]
 extern crate error_chain;
 extern crate env_logger;
+extern crate glob;
 extern crate git2;
 extern crate gnuplot;
 #[macro_use]

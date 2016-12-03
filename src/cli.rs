@@ -20,7 +20,7 @@ Options:
     -f, --file <file>            Data file to write to [default: chrono.csv].
     --commits <commit-list>      (bench:) check out each commit in the (space-separated) list
                                  in turn and run the benchmark, accumulating results
-    --ignore-dirty               (bench:) Ignore dirty files when relevant.
+    --ignore-dirty <glob>        (bench:) Ignore dirty files that match the given glob pattern.
     --repeat <N>                 (bench:) Take N measurements when benchmarking [default: 1].
     --include-variance           (plot:) Include variance as errors bars.
     --medians                    (plot:) Plot medians of all samples (with error bars).
@@ -37,7 +37,7 @@ pub struct Args {
     arg_plot_filter: Vec<String>,
     flag_file: String,
     flag_repeat: usize,
-    flag_ignore_dirty: bool,
+    flag_ignore_dirty: Vec<String>,
     flag_include_variance: bool,
     flag_medians: bool,
     flag_output_file: String,
@@ -66,7 +66,7 @@ fn run() -> Result<()> {
 
     if args.cmd_bench {
         bench::bench(&args.flag_file,
-                     args.flag_ignore_dirty,
+                     &args.flag_ignore_dirty,
                      args.flag_repeat,
                      &args.flag_commits,
                      &args.arg_bench_option)?;

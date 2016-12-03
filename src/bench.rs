@@ -3,6 +3,7 @@ use errors::*;
 use git;
 use git2::{ObjectType, Repository};
 use git2::build::CheckoutBuilder;
+use glob;
 use pbr::ProgressBar;
 use regex::Regex;
 use std::env;
@@ -20,12 +21,22 @@ lazy_static! {
 }
 
 pub fn bench(data_file: &str,
-             ignore_dirty: bool,
+             ignore_dirty: &[String],
              flag_repeat: usize,
              commits: &Option<String>,
              bench_options: &[String])
              -> Result<()> {
     let data_path: &Path = Path::new(data_file);
+
+    // Find the files that match the ignore patterns.
+    let mut ignored_paths = vec![data_path.to_owned()];
+    for pattern in ignore_dirty {
+        let paths = glob::glob(pattern).chain_err(|| format!("invalid glob pattern: `{}`", pattern))?;
+        for path in paths {
+            let path = path.chain_err(|| format!("error accessing path for pattern `{}`", pattern))?;
+            ignored_paths.push(path);
+        }
+    }
 
     // Open the data file for append early, so that we detect errors
     // *before* we run cargo bench.
@@ -38,11 +49,7 @@ pub fn bench(data_file: &str,
     // Find the current commit. Check that repository is clean.
     let current_dir = env::current_dir().chain_err(|| "failed to find current dir")?;
     let repo = git::open_repo(&current_dir).chain_err(|| "failed to open git repo")?;
-    match git::check_clean(&repo, &[data_path]) {
-        Ok(()) => {}
-        Err(_) if ignore_dirty => {}
-        Err(err) => throw!(err),
-    }
+    git::check_clean(&repo, &ignored_paths)?;
     let head = repo.head().chain_err(|| "failed to fetch HEAD from repo")?;
 
     // Parse the `bench_options` and separate them into benchmark names (no leading `-`)

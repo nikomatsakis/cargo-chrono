@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use git2::{Commit, Object, Repository, Status, STATUS_IGNORED};
 use git2::build::CheckoutBuilder;
 use errors::*;
@@ -10,7 +10,7 @@ pub fn open_repo(start_path: &Path) -> Result<Repository> {
        .chain_err(|| format!("could not find git repository in `{}`", start_path.display()))?)
 }
 
-pub fn check_clean(repo: &Repository, exceptions: &[&Path]) -> Result<()> {
+pub fn check_clean(repo: &Repository, exceptions: &[PathBuf]) -> Result<()> {
     let statuses = repo.statuses(None)
         .chain_err(|| "could not load git repository status")?;
 
