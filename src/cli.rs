@@ -20,10 +20,12 @@ Options:
     -f, --file <file>            Data file to write to [default: chrono.csv].
     --commits <commit-list>      (bench:) check out each commit in the (space-separated) list
                                  in turn and run the benchmark, accumulating results
-    --ignore-dirty <glob>        (bench:) Ignore dirty files that match the given glob pattern.
+    --ignore-dirty <glob> ...    (bench:) Ignore dirty files that match the given glob pattern.
     --repeat <N>                 (bench:) Take N measurements when benchmarking [default: 1].
     --include-variance           (plot:) Include variance as errors bars.
     --medians                    (plot:) Plot medians of all samples (with error bars).
+    --normalize                  (plot:) Normalize the measurements against the first commit.
+                                 Implies --median.
     --output-file <file>         (plot:) Where to write the output [default: chrono.svg].
 ";
 
@@ -40,6 +42,7 @@ pub struct Args {
     flag_ignore_dirty: Vec<String>,
     flag_include_variance: bool,
     flag_medians: bool,
+    flag_normalize: bool,
     flag_output_file: String,
     flag_commits: Option<String>,
 }
@@ -74,7 +77,8 @@ fn run() -> Result<()> {
         plot::plot(&args.flag_file,
                    plot::Config {
                        include_variance: args.flag_include_variance,
-                       compute_medians: args.flag_medians,
+                       compute_medians: args.flag_medians || args.flag_normalize,
+                       compute_normalize: args.flag_normalize,
                        output_file: &args.flag_output_file,
                        filters: &args.arg_plot_filter,
                    })?;

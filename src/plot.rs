@@ -8,6 +8,7 @@ use std::cmp;
 pub struct Config<'c> {
     pub include_variance: bool,
     pub compute_medians: bool,
+    pub compute_normalize: bool,
     pub output_file: &'c str,
     pub filters: &'c [String],
 }
@@ -26,14 +27,14 @@ pub fn plot(data_file: &str, mut config: Config) -> Result<()> {
             };
             Regex::new(text)
                 .chain_err(|| format!("filter `{}` not a valid regular expression", f))
-            .map(|r| (inverted, r))
+                .map(|r| (inverted, r))
         })
         .collect());
     measurements.retain(|m| passes_filters(&filters, m));
 
     // Convert to medians
     if config.compute_medians {
-        measurements = compute_medians(&measurements);
+        measurements = compute_medians(&measurements, config.compute_normalize);
         config.include_variance = true;
     }
 
@@ -87,7 +88,11 @@ fn plot_with_x_axis(measurements: &[Measurement], x_axis: &XAxis, config: Config
         axes.set_x_axis(true, &[]);
         axes.set_x_label(&x_axis.axis_label, &[]);
         axes.set_y_axis(true, &[]);
-        axes.set_y_label("ns/iter", &[]);
+        if !config.compute_normalize {
+            axes.set_y_label("ns/iter", &[]);
+        } else {
+            axes.set_y_label("normalized ns/iter", &[]);
+        }
 
         if let Some(ref ticks) = x_axis.ticks {
             let gnu_ticks = ticks.iter()
@@ -193,30 +198,65 @@ fn escape(name: &str) -> String {
     name.replace('_', "-")
 }
 
-fn compute_medians(measurements: &[Measurement]) -> Vec<Measurement> {
+fn compute_medians(measurements: &[Measurement], normalize: bool) -> Vec<Measurement> {
     let mut keys = vec![];
     let mut map = HashMap::new();
     for measurement in measurements {
         let key = (measurement.commit.clone(), measurement.test.clone());
         let aggregated = map.entry(key.clone())
-                            .or_insert_with(|| {
-                                keys.push(key);
-                                vec![]
-                            });
+            .or_insert_with(|| {
+                keys.push(key);
+                vec![]
+            });
         aggregated.push(measurement.time);
+    }
+
+    // sort the values
+    for (_key, values) in &mut map {
+        values.sort();
+    }
+
+    if !normalize {
+        return keys.into_iter()
+            .map(|key| {
+                let (median, error) = compute_median_and_error(&map[&key]);
+                Measurement {
+                    commit: key.0,
+                    test: key.1,
+                    time: median,
+                    variance: error,
+                }
+            })
+            .collect();
+    }
+
+    let mut baselines = HashMap::new();
+    for key in &keys {
+        // for each test, take the first commit we found
+        baselines.entry(key.1.clone())
+            .or_insert_with(|| {
+                let (median, _error) = compute_median_and_error(&map[key]);
+                median
+            });
     }
 
     keys.into_iter()
         .map(|key| {
-            let (median, error) = compute_median_and_error(map[&key].iter().cloned());
-            Measurement { commit: key.0, test: key.1, time: median, variance: error }
+            let baseline = baselines[&key.1];
+            let (median, error) = compute_median_and_error(&map[&key]);
+            Measurement {
+                commit: key.0,
+                test: key.1,
+                time: scale(median, baseline),
+                variance: scale(error, baseline),
+            }
         })
         .collect()
 }
 
-fn compute_median_and_error<I: Iterator<Item = u64>>(values: I) -> (u64, u64) {
-    let mut values: Vec<u64> = values.collect();
-    values.sort();
+/// Input: sorted list of u64.
+/// Output: median and maximum error
+fn compute_median_and_error(values: &[u64]) -> (u64, u64) {
     let len = values.len();
     let median = if len == 0 {
         0
@@ -239,4 +279,16 @@ fn compute_median_and_error<I: Iterator<Item = u64>>(values: I) -> (u64, u64) {
     };
 
     (median, error)
+}
+
+fn scale(value: u64, mut baseline: u64) -> u64 {
+    if baseline == 0 {
+        // Should basically never happen. It would mean test took 0ns to
+        // run.
+        baseline = 1;
+    }
+    let value = value as f64;
+    let baseline = baseline as f64;
+    let percent = (value / baseline) * 100.0;
+    percent as u64
 }
