@@ -31,7 +31,7 @@ Options:
 
 // dead code allowed for now
 #[allow(dead_code)]
-#[derive(RustcDecodable)]
+#[derive(Deserialize)]
 pub struct Args {
     cmd_bench: bool,
     cmd_plot: bool,
@@ -64,7 +64,7 @@ fn run() -> Result<()> {
     debug!("env_logger initialized");
 
     let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.argv(env::args().into_iter()).decode())
+        .and_then(|d| d.argv(env::args().into_iter()).deserialize())
         .unwrap_or_else(|e| e.exit());
 
     if args.cmd_bench {
