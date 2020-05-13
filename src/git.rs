@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use git2::{Commit, Object, Repository, Status, STATUS_IGNORED};
+use git2::{Commit, Object, Repository, Status};
 use git2::build::CheckoutBuilder;
 use errors::*;
 
@@ -25,7 +25,7 @@ pub fn check_clean(repo: &Repository, exceptions: &[PathBuf]) -> Result<()> {
         None => throw!("bare repositories are not supported"),
     };
     let mut errors = 0;
-    let dirty_status = Status::all() - STATUS_IGNORED;
+    let dirty_status = Status::all() - Status::IGNORED;
     for status in statuses.iter() {
         if status.status().intersects(dirty_status) {
             let stderr = io::stderr();
