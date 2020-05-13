@@ -60,7 +60,7 @@ pub fn main() {
 }
 
 fn run() -> Result<()> {
-    env_logger::init().unwrap();
+    env_logger::init();
     debug!("env_logger initialized");
 
     let args: Args = Docopt::new(USAGE)
