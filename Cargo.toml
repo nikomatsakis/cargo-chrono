@@ -9,7 +9,7 @@ description = "Cargo tool to benchmark multiple commits and generate plots of th
 
 [dependencies]
 docopt = "0.8"
-git2 = "0.6"
+git2 = { version = "0.13.5", default-features = false }
 regex = "0.2"
 rustc-serialize = "0.3.19"
 log = "0.3"
